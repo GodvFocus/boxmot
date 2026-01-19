@@ -38,7 +38,6 @@ boxmot/engine/trackeval/
 *.torchscript
 *.pt
 *.pth
-*.pth
 *.onnx
 *.engine
 *.data
@@ -62,3 +61,4 @@ boxmot/motion/cmc/*.jpg
 
 # json outputs
 *_output.json
+*1.md
