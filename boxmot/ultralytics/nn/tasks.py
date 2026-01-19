@@ -446,7 +446,7 @@ class RTDETRDetectionModel(DetectionModel):
 
     def init_criterion(self):
         """Initialize the loss criterion for the RTDETRDetectionModel."""
-        from ultralytics.models.utils.loss import RTDETRDetectionLoss
+        from boxmot.ultralytics.models.utils.loss import RTDETRDetectionLoss
 
         return RTDETRDetectionLoss(nc=self.nc, use_vfl=True, use_sl=False, use_emasl=False, use_svfl=False, use_emasvfl=False, use_mal=False)
 
@@ -610,7 +610,7 @@ def torch_safe_load(weight):
     Returns:
         (dict): The loaded PyTorch model.
     """
-    from ultralytics.utils.downloads import attempt_download_asset
+    from boxmot.ultralytics.utils.downloads import attempt_download_asset
 
     check_suffix(file=weight, suffix='.pt')
     file = attempt_download_asset(weight)  # search online if missing locally
@@ -618,7 +618,18 @@ def torch_safe_load(weight):
         with temporary_modules({
                 'ultralytics.yolo.utils': 'ultralytics.utils',
                 'ultralytics.yolo.v8': 'ultralytics.models.yolo',
-                'ultralytics.yolo.data': 'ultralytics.data'}):  # for legacy 8.0 Classify and Pose models
+                'ultralytics.yolo.data': 'ultralytics.data',
+                # Redirect ultralytics.nn to boxmot.ultralytics.nn for custom modules
+                'ultralytics.nn': 'boxmot.ultralytics.nn',
+                'ultralytics.nn.extra_modules': 'boxmot.ultralytics.nn.extra_modules',
+                'ultralytics.nn.extra_modules.block': 'boxmot.ultralytics.nn.extra_modules.block',
+                'ultralytics.nn.extra_modules.attention': 'boxmot.ultralytics.nn.extra_modules.attention',
+                'ultralytics.nn.modules': 'boxmot.ultralytics.nn.modules',
+                'ultralytics.nn.modules.conv': 'boxmot.ultralytics.nn.modules.conv',
+                'ultralytics.nn.modules.block': 'boxmot.ultralytics.nn.modules.block',
+                'ultralytics.nn.modules.head': 'boxmot.ultralytics.nn.modules.head',
+                'ultralytics.nn.modules.transformer': 'boxmot.ultralytics.nn.modules.transformer',
+                'ultralytics.nn.backbone': 'boxmot.ultralytics.nn.backbone'}):  # for legacy 8.0 Classify and Pose models
             try:
                 return torch.load(file, map_location='cpu', weights_only=False), file  # load
             except:

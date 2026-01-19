@@ -2,9 +2,9 @@
 
 import torch
 
-from ultralytics.engine.predictor import BasePredictor
-from ultralytics.engine.results import Results
-from ultralytics.utils import DEFAULT_CFG, ops
+from boxmot.ultralytics.engine.predictor import BasePredictor
+from boxmot.ultralytics.engine.results import Results
+from boxmot.ultralytics.utils import DEFAULT_CFG, ops
 
 
 class ClassificationPredictor(BasePredictor):
@@ -16,8 +16,8 @@ class ClassificationPredictor(BasePredictor):
 
     Example:
         ```python
-        from ultralytics.utils import ASSETS
-        from ultralytics.models.yolo.classify import ClassificationPredictor
+        from boxmot.ultralytics.utils import ASSETS
+        from boxmot.ultralytics.models.yolo.classify import ClassificationPredictor
 
         args = dict(model='yolov8n-cls.pt', source=ASSETS)
         predictor = ClassificationPredictor(overrides=args)

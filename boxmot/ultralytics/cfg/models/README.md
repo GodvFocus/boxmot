@@ -18,7 +18,7 @@ They may also be used directly in a Python environment, and accepts the same
 [arguments](https://docs.ultralytics.com/usage/cfg/) as in the CLI example above:
 
 ```python
-from ultralytics import YOLO
+from boxmot.ultralytics import YOLO
 
 model = YOLO("model.yaml")  # build a YOLOv8n model from scratch
 # YOLO("model.pt")  use pre-trained model if available

@@ -2,10 +2,10 @@
 
 from copy import copy
 
-from ultralytics.models import yolo
-from ultralytics.nn.tasks import PoseModel
-from ultralytics.utils import DEFAULT_CFG, LOGGER
-from ultralytics.utils.plotting import plot_images, plot_results
+from boxmot.ultralytics.models import yolo
+from boxmot.ultralytics.nn.tasks import PoseModel
+from boxmot.ultralytics.utils import DEFAULT_CFG, LOGGER
+from boxmot.ultralytics.utils.plotting import plot_images, plot_results
 
 
 class PoseTrainer(yolo.detect.DetectionTrainer):
@@ -14,7 +14,7 @@ class PoseTrainer(yolo.detect.DetectionTrainer):
 
     Example:
         ```python
-        from ultralytics.models.yolo.pose import PoseTrainer
+        from boxmot.ultralytics.models.yolo.pose import PoseTrainer
 
         args = dict(model='yolov8n-pose.pt', data='coco8-pose.yaml', epochs=3)
         trainer = PoseTrainer(overrides=args)

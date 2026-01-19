@@ -5,8 +5,8 @@ import torch.nn as nn
 import torch.nn.functional as F
 import dill as pickle
 
-from ultralytics.utils.loss import FocalLoss, VarifocalLoss, SlideLoss, EMASlideLoss, SlideVarifocalLoss, EMASlideVarifocalLoss, MALoss
-from ultralytics.utils.metrics import bbox_iou, bbox_inner_iou, bbox_focaler_iou, bbox_mpdiou, bbox_inner_mpdiou, bbox_focaler_mpdiou, wasserstein_loss, WiseIouLoss
+from boxmot.ultralytics.utils.loss import FocalLoss, VarifocalLoss, SlideLoss, EMASlideLoss, SlideVarifocalLoss, EMASlideVarifocalLoss, MALoss
+from boxmot.ultralytics.utils.metrics import bbox_iou, bbox_inner_iou, bbox_focaler_iou, bbox_mpdiou, bbox_inner_mpdiou, bbox_focaler_mpdiou, wasserstein_loss, WiseIouLoss
 
 from .ops import HungarianMatcher
 

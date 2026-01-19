@@ -2,10 +2,10 @@
 
 from copy import copy
 
-from ultralytics.models import yolo
-from ultralytics.nn.tasks import SegmentationModel
-from ultralytics.utils import DEFAULT_CFG, RANK
-from ultralytics.utils.plotting import plot_images, plot_results
+from boxmot.ultralytics.models import yolo
+from boxmot.ultralytics.nn.tasks import SegmentationModel
+from boxmot.ultralytics.utils import DEFAULT_CFG, RANK
+from boxmot.ultralytics.utils.plotting import plot_images, plot_results
 
 
 class SegmentationTrainer(yolo.detect.DetectionTrainer):
@@ -14,7 +14,7 @@ class SegmentationTrainer(yolo.detect.DetectionTrainer):
 
     Example:
         ```python
-        from ultralytics.models.yolo.segment import SegmentationTrainer
+        from boxmot.ultralytics.models.yolo.segment import SegmentationTrainer
 
         args = dict(model='yolov8n-seg.pt', data='coco8-seg.yaml', epochs=3)
         trainer = SegmentationTrainer(overrides=args)

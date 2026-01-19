@@ -2,10 +2,10 @@
 
 import torch
 
-from ultralytics.engine.results import Results
-from ultralytics.models.fastsam.utils import bbox_iou
-from ultralytics.models.yolo.detect.predict import DetectionPredictor
-from ultralytics.utils import DEFAULT_CFG, ops
+from boxmot.ultralytics.engine.results import Results
+from boxmot.ultralytics.models.fastsam.utils import bbox_iou
+from boxmot.ultralytics.models.yolo.detect.predict import DetectionPredictor
+from boxmot.ultralytics.utils import DEFAULT_CFG, ops
 
 
 class FastSAMPredictor(DetectionPredictor):

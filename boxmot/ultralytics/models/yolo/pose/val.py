@@ -5,11 +5,11 @@ from pathlib import Path
 import numpy as np
 import torch
 
-from ultralytics.models.yolo.detect import DetectionValidator
-from ultralytics.utils import LOGGER, ops
-from ultralytics.utils.checks import check_requirements
-from ultralytics.utils.metrics import OKS_SIGMA, PoseMetrics, box_iou, kpt_iou
-from ultralytics.utils.plotting import output_to_target, plot_images
+from boxmot.ultralytics.models.yolo.detect import DetectionValidator
+from boxmot.ultralytics.utils import LOGGER, ops
+from boxmot.ultralytics.utils.checks import check_requirements
+from boxmot.ultralytics.utils.metrics import OKS_SIGMA, PoseMetrics, box_iou, kpt_iou
+from boxmot.ultralytics.utils.plotting import output_to_target, plot_images
 
 
 class PoseValidator(DetectionValidator):
@@ -18,7 +18,7 @@ class PoseValidator(DetectionValidator):
 
     Example:
         ```python
-        from ultralytics.models.yolo.pose import PoseValidator
+        from boxmot.ultralytics.models.yolo.pose import PoseValidator
 
         args = dict(model='yolov8n-pose.pt', data='coco8-pose.yaml')
         validator = PoseValidator(args=args)

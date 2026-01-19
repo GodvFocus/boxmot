@@ -9,11 +9,11 @@ import torch
 from PIL import Image
 from torch.utils.data import dataloader, distributed
 
-from ultralytics.data.loaders import (LOADERS, LoadImages, LoadPilAndNumpy, LoadScreenshots, LoadStreams, LoadTensor,
+from boxmot.ultralytics.data.loaders import (LOADERS, LoadImages, LoadPilAndNumpy, LoadScreenshots, LoadStreams, LoadTensor,
                                       SourceTypes, autocast_list)
-from ultralytics.data.utils import IMG_FORMATS, VID_FORMATS
-from ultralytics.utils import RANK, colorstr
-from ultralytics.utils.checks import check_file
+from boxmot.ultralytics.data.utils import IMG_FORMATS, VID_FORMATS
+from boxmot.ultralytics.utils import RANK, colorstr
+from boxmot.ultralytics.utils.checks import check_file
 
 from .dataset import YOLODataset
 from .utils import PIN_MEMORY
