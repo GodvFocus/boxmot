@@ -27,8 +27,90 @@ def is_rtdetr_model(yolo_name):
     return _check_model(yolo_name, RTDETR_MODELS)
 
 
+def is_rtdetr_ultralytics(yolo_name):
+    """
+    Check if model is Ultralytics RT-DETR (not HuggingFace transformers RT-DETR).
+    
+    Identifies RT-DETR models that should use the Ultralytics RTDETR class:
+    - Official models with 'rtdetr-' prefix (e.g., rtdetr-l.pt, rtdetr-x.yaml)
+    - Custom local .yaml/.yml files (assumed to be RT-DETR configs)
+    - Local .pt files with 'rtdetr' in path/name
+    
+    Args:
+        yolo_name: Model path or name
+        
+    Returns:
+        bool: True if Ultralytics RT-DETR, False otherwise
+    """
+    from pathlib import Path
+    
+    name_str = str(yolo_name)
+    path = Path(name_str)
+    stem = path.stem.lower()
+    
+    # Exclude HuggingFace transformers RT-DETR models explicitly
+    if stem in {m.lower() for m in RTDETR_MODELS}:
+        return False
+    
+    # Official Ultralytics RT-DETR models (rtdetr-l, rtdetr-x, etc.)
+    if "rtdetr-" in name_str.lower():
+        return True
+    
+    # YAML/YML files in rt-detr config directory or containing 'rtdetr'
+    if path.suffix.lower() in (".yaml", ".yml"):
+        if "rtdetr" in name_str.lower() or "rt-detr" in name_str:
+            return True
+    
+    # PT files containing 'rtdetr' in path or name
+    if path.suffix.lower() == ".pt":
+        if "rtdetr" in name_str.lower() or "rt-detr" in name_str:
+            return True
+    
+    return False
+
+
+def resolve_rtdetr_weights(yaml_path):
+    """
+    Find matching weights file for a RT-DETR YAML configuration.
+    
+    Searches for .pt weights file with the same stem as the YAML in:
+    1. Same directory as YAML
+    2. boxmot/ultralytics/cfg/models/rt-detr/
+    3. Project root directory
+    4. Current working directory
+    
+    Args:
+        yaml_path: Path to YAML configuration file
+        
+    Returns:
+        Path to weights file if found, None otherwise
+    """
+    from pathlib import Path
+    
+    yaml_path = Path(yaml_path)
+    if yaml_path.suffix.lower() not in (".yaml", ".yml"):
+        return None
+    
+    stem = yaml_path.stem
+    weight_name = f"{stem}.pt"
+    
+    # Search paths in priority order
+    search_paths = [
+        yaml_path.parent / weight_name,  # Same directory as YAML
+        Path("boxmot/ultralytics/cfg/models/rt-detr") / weight_name,  # Config directory
+        Path(weight_name),  # Project root / current working directory
+    ]
+    
+    for weight_path in search_paths:
+        if weight_path.exists():
+            LOGGER.info(f"Found matching weights for {yaml_path.name}: {weight_path}")
+            return weight_path
+    
+    return None
+
+
 def default_imgsz(yolo_name):
-    if is_ultralytics_model(yolo_name):
+    if is_ultralytics_model(yolo_name) or is_rtdetr_ultralytics(yolo_name):
         return [640, 640]
     elif is_yolox_model(yolo_name):
         return [800, 1440]

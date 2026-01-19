@@ -9,7 +9,8 @@ import torch
 
 from boxmot import TRACKERS
 from boxmot.detectors import (default_imgsz, get_yolo_inferer,
-                              is_ultralytics_model)
+                              is_ultralytics_model, is_rtdetr_ultralytics,
+                              resolve_rtdetr_weights)
 from boxmot.trackers.tracker_zoo import create_tracker
 from boxmot.utils import TRACKER_CONFIGS
 from boxmot.utils import logger as LOGGER
@@ -248,10 +249,40 @@ def main(args):
         
         video_writer = VideoWriter(save_dir / video_name, fps=30)
     
-    # Initialize YOLO model (use placeholder if non-ultralytics model)
-    yolo = YOLO(
-        args.yolo_model if is_ultralytics_model(args.yolo_model) else "yolov8n.pt",
-    )
+    # Initialize YOLO/RTDETR model
+    if is_rtdetr_ultralytics(args.yolo_model):
+        # Use Ultralytics RTDETR class for custom RT-DETR models
+        from boxmot.ultralytics.models.rtdetr import RTDETR
+        
+        model_path = Path(args.yolo_model)
+        
+        if model_path.suffix.lower() == ".pt":
+            # .pt file: load directly (may contain embedded architecture)
+            LOGGER.opt(colors=True).info(f"<bold>Loading RT-DETR from:</bold> <cyan>{model_path}</cyan>")
+            yolo = RTDETR(str(model_path))
+        elif model_path.suffix.lower() in (".yaml", ".yml"):
+            # .yaml file: find matching weights and load, or initialize with random weights
+            weights_path = resolve_rtdetr_weights(model_path)
+            
+            if weights_path:
+                LOGGER.opt(colors=True).info(
+                    f"<bold>Loading RT-DETR:</bold> <cyan>{model_path.name}</cyan> + <cyan>{weights_path.name}</cyan>"
+                )
+                yolo = RTDETR(str(model_path))
+                yolo.load(str(weights_path))
+            else:
+                LOGGER.opt(colors=True).warning(
+                    f"<bold>No weights found for {model_path.name}, initializing with random weights</bold>"
+                )
+                yolo = RTDETR(str(model_path))
+        else:
+            raise ValueError(f"Unsupported RT-DETR model format: {model_path.suffix}")
+    elif is_ultralytics_model(args.yolo_model):
+        # Standard Ultralytics models (YOLO)
+        yolo = YOLO(args.yolo_model)
+    else:
+        # Non-ultralytics models: use placeholder, will be replaced by callback
+        yolo = YOLO("yolov8n.pt")
 
     # Add callbacks for tracker initialization and trajectory plotting
     # Pass args, timing_stats and video_writer through partial to make them available in callbacks
@@ -261,11 +292,11 @@ def main(args):
     # Add callback to start frame timing
     yolo.add_callback("on_predict_batch_start", lambda p: timing_stats.start_frame())
 
-    # Handle non-ultralytics models (e.g., YOLOX)
+    # Handle non-ultralytics models (e.g., YOLOX, HuggingFace RT-DETR)
     # We need to setup the model replacement via callback since predictor
     # doesn't exist until predict() is called
     yolox_model = None
-    if not is_ultralytics_model(args.yolo_model):
+    if not is_ultralytics_model(args.yolo_model) and not is_rtdetr_ultralytics(args.yolo_model):
         # Create the YOLOX model inferer - will be setup in callback
         m = get_yolo_inferer(args.yolo_model)
         

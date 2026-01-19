@@ -8,7 +8,8 @@ For more information on RT-DETR, visit: https://arxiv.org/pdf/2304.08069.pdf
 """
 
 from ultralytics.engine.model import Model
-from ultralytics.nn.tasks import RTDETRDetectionModel
+# Use BoxMOT's tasks module which includes custom modules from block.py
+from boxmot.ultralytics.nn.tasks import RTDETRDetectionModel
 
 from .predict import RTDETRPredictor
 from .train import RTDETRTrainer

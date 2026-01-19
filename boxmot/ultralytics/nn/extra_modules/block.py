@@ -56,7 +56,7 @@ from .SFSConv import SFS_Conv
 from .GroupMamba.groupmamba import GroupMambaLayer, Block_mamba
 from .MambaVision import MambaVisionBlock
 
-from ultralytics.utils.torch_utils import fuse_conv_and_bn, make_divisible
+from boxmot.ultralytics.utils.torch_utils import fuse_conv_and_bn, make_divisible
 from timm.layers import CondConv2d, DropPath, trunc_normal_, use_fused_attn, to_2tuple
 
 __all__ = ['Shareable_Multi_Semantic_Spatial_Attention', 'Ghost_HGBlock', 'Rep_HGBlock', 'DWRC3', 'C3_DWR', 'C2f_DWR', 'BasicBlock_Ortho', 'BottleNeck_Ortho',
