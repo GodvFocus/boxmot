@@ -33,21 +33,13 @@ def ensure_model_extension(model_path):
         model_path: Path to model file (str or Path)
         
     Returns:
-        Path with appropriate extension
+        Path with .pt extension
     """
     if model_path is None:
         return None
     
-    from boxmot.detectors import is_rtdetr_ultralytics
-    
     model_path = Path(model_path)
-    
-    # For RT-DETR Ultralytics models, preserve existing extensions (.yaml/.yml/.pt)
-    if is_rtdetr_ultralytics(model_path):
-        if model_path.suffix.lower() in (".yaml", ".yml", ".pt"):
-            return model_path
-    
-    # If no extension, add .pt (unless openvino)
+    # If no extension, add .pt
     if not model_path.suffix and "openvino" not in model_path.name:
         model_path = model_path.with_suffix('.pt')
     

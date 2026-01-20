@@ -1,6 +1,6 @@
 # Ultralytics YOLO 🚀, AGPL-3.0 license
 
-from boxmot.ultralytics.nn.backbone.lsnet import SKA
+from ultralytics.nn.backbone.lsnet import SKA
 import contextlib
 from copy import deepcopy
 from pathlib import Path
@@ -9,35 +9,35 @@ import timm
 import torch
 import torch.nn as nn
 
-from boxmot.ultralytics.nn.modules import *
-from boxmot.ultralytics.nn.extra_modules import *
-from boxmot.ultralytics.utils import DEFAULT_CFG_DICT, DEFAULT_CFG_KEYS, LOGGER, colorstr, emojis, yaml_load
-from boxmot.ultralytics.utils.checks import check_requirements, check_suffix, check_yaml
-from boxmot.ultralytics.utils.loss import v8ClassificationLoss, v8DetectionLoss, v8PoseLoss, v8SegmentationLoss
-from boxmot.ultralytics.utils.plotting import feature_visualization
-from boxmot.ultralytics.utils.torch_utils import (fuse_conv_and_bn, fuse_deconv_and_bn, initialize_weights, intersect_dicts,
+from ultralytics.nn.modules import *
+from ultralytics.nn.extra_modules import *
+from ultralytics.utils import DEFAULT_CFG_DICT, DEFAULT_CFG_KEYS, LOGGER, colorstr, emojis, yaml_load
+from ultralytics.utils.checks import check_requirements, check_suffix, check_yaml
+from ultralytics.utils.loss import v8ClassificationLoss, v8DetectionLoss, v8PoseLoss, v8SegmentationLoss
+from ultralytics.utils.plotting import feature_visualization
+from ultralytics.utils.torch_utils import (fuse_conv_and_bn, fuse_deconv_and_bn, initialize_weights, intersect_dicts,
                                            make_divisible, model_info, scale_img, time_sync)
 
-from boxmot.ultralytics.nn.backbone.convnextv2 import *
-from boxmot.ultralytics.nn.backbone.fasternet import *
-from boxmot.ultralytics.nn.backbone.efficientViT import *
-from boxmot.ultralytics.nn.backbone.EfficientFormerV2 import *
-from boxmot.ultralytics.nn.backbone.VanillaNet import *
-# from boxmot.ultralytics.nn.backbone.revcol import *
-from boxmot.ultralytics.nn.backbone.lsknet import *
-from boxmot.ultralytics.nn.backbone.SwinTransformer import *
-from boxmot.ultralytics.nn.backbone.repvit import *
-from boxmot.ultralytics.nn.backbone.CSwimTramsformer import *
-from boxmot.ultralytics.nn.backbone.UniRepLKNet import *
-from boxmot.ultralytics.nn.backbone.TransNext import *
-from boxmot.ultralytics.nn.backbone.rmt import *
-from boxmot.ultralytics.nn.backbone.pkinet import *
-from boxmot.ultralytics.nn.backbone.mobilenetv4 import *
-from boxmot.ultralytics.nn.backbone.starnet import *
-from boxmot.ultralytics.nn.extra_modules.mobileMamba.mobilemamba import *
-from boxmot.ultralytics.nn.backbone.MambaOut import *
-from boxmot.ultralytics.nn.backbone.overlock import *
-from boxmot.ultralytics.nn.backbone.lsnet import *
+from ultralytics.nn.backbone.convnextv2 import *
+from ultralytics.nn.backbone.fasternet import *
+from ultralytics.nn.backbone.efficientViT import *
+from ultralytics.nn.backbone.EfficientFormerV2 import *
+from ultralytics.nn.backbone.VanillaNet import *
+# from ultralytics.nn.backbone.revcol import *
+from ultralytics.nn.backbone.lsknet import *
+from ultralytics.nn.backbone.SwinTransformer import *
+from ultralytics.nn.backbone.repvit import *
+from ultralytics.nn.backbone.CSwimTramsformer import *
+from ultralytics.nn.backbone.UniRepLKNet import *
+from ultralytics.nn.backbone.TransNext import *
+from ultralytics.nn.backbone.rmt import *
+from ultralytics.nn.backbone.pkinet import *
+from ultralytics.nn.backbone.mobilenetv4 import *
+from ultralytics.nn.backbone.starnet import *
+from ultralytics.nn.extra_modules.mobileMamba.mobilemamba import *
+from ultralytics.nn.backbone.MambaOut import *
+from ultralytics.nn.backbone.overlock import *
+from ultralytics.nn.backbone.lsnet import *
 
 try:
     import thop

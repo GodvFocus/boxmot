@@ -8,7 +8,7 @@ from typing import Union
 
 from ultralytics.cfg import TASK2DATA, get_cfg, get_save_dir
 from ultralytics.hub.utils import HUB_WEB_ROOT
-from boxmot.ultralytics.nn.tasks import attempt_load_one_weight, guess_model_task, nn, yaml_model_load
+from ultralytics.nn.tasks import attempt_load_one_weight, guess_model_task, nn, yaml_model_load
 from ultralytics.utils import ASSETS, DEFAULT_CFG_DICT, LOGGER, RANK, callbacks, checks, emojis, yaml_load
 from ultralytics.utils.downloads import GITHUB_ASSETS_STEMS
 
