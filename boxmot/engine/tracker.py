@@ -118,17 +118,6 @@ def plot_trajectories(predictor, timing_stats=None, video_writer=None):
         dets = result.boxes.data.cpu().numpy() if result.boxes is not None else np.empty((0, 6))
         img = result.orig_img
         
-        # Log detection info at INFO level
-        n_dets = len(dets)
-        if n_dets > 0:
-            conf_min, conf_max = dets[:, 4].min(), dets[:, 4].max()
-            LOGGER.opt(colors=True).info(
-                f"<bold>Detections:</bold> <cyan>{n_dets}</cyan> objects, "
-                f"conf: [<blue>{conf_min:.3f}</blue>, <blue>{conf_max:.3f}</blue>]"
-            )
-        else:
-            LOGGER.opt(colors=True).info("<bold>Detections:</bold> <yellow>0 objects</yellow>")
-        
         # Reset per-frame ReID accumulator
         if timing_stats:
             timing_stats.reset_frame_reid()
@@ -138,14 +127,6 @@ def plot_trajectories(predictor, timing_stats=None, video_writer=None):
             timing_stats.start_tracking()
         
         tracks = tracker.update(dets, img)
-        
-        # Log tracking results
-        n_tracks = len(tracks) if tracks is not None and len(tracks) > 0 else 0
-        if n_dets > 0 and n_tracks == 0:
-            LOGGER.opt(colors=True).warning(
-                f"<yellow>⚠️  {n_dets} detections but 0 tracks!</yellow> "
-                f"Check ByteTrack track_thresh (current: {predictor.custom_args.track_thresh if hasattr(predictor.custom_args, 'track_thresh') else 'N/A'})"
-            )
         
         track_time = reid_time = assoc_time = 0
         if timing_stats:
@@ -339,10 +320,6 @@ def main(args):
         yolo.add_callback("on_predict_batch_start", update_paths_callback)
 
     # Use predict() instead of track() to avoid Ultralytics' default tracking callbacks
-    LOGGER.opt(colors=True).info(f"<bold>Starting prediction with:</bold>")
-    LOGGER.opt(colors=True).info(f"  conf={args.conf}, iou={args.iou}, imgsz={args.imgsz}")
-    LOGGER.opt(colors=True).info(f"  device={args.device}, verbose={args.verbose}")
-    
     results = yolo.predict(
         source=args.source,
         conf=args.conf,

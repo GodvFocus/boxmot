@@ -5,8 +5,8 @@ min_conf:
 
 track_thresh:
   type: uniform
-  default: 0.3  # lowered from 0.6 to work with lower confidence detections
-  range: [0.3, 0.7]
+  default: 0.6  # from the default parameters
+  range: [0.4, 0.7]
 
 track_buffer:
   type: qrandint
@@ -15,7 +15,7 @@ track_buffer:
 
 match_thresh:
   type: uniform
-  default: 0.8  # lowered from 0.9 for more lenient matching
+  default: 0.9  # from the default parameters
   range: [0.7, 0.9]
 
 frame_rate:

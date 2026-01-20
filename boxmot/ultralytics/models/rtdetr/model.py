@@ -7,7 +7,7 @@ hybrid encoder and IoU-aware query selection for enhanced detection accuracy.
 For more information on RT-DETR, visit: https://arxiv.org/pdf/2304.08069.pdf
 """
 
-from boxmot.ultralytics.engine.model import Model
+from ultralytics.engine.model import Model
 # Use BoxMOT's tasks module which includes custom modules from block.py
 from boxmot.ultralytics.nn.tasks import RTDETRDetectionModel
 

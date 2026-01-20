@@ -2,7 +2,7 @@
 
 from pathlib import Path
 
-from boxmot.ultralytics.engine.model import Model
+from ultralytics.engine.model import Model
 
 from .predict import FastSAMPredictor
 from .val import FastSAMValidator
@@ -14,7 +14,7 @@ class FastSAM(Model):
 
     Example:
         ```python
-        from boxmot.ultralytics import FastSAM
+        from ultralytics import FastSAM
 
         model = FastSAM('last.pt')
         results = model.predict('ultralytics/assets/bus.jpg')

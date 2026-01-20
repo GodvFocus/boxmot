@@ -4,8 +4,8 @@ from functools import partial
 
 import torch
 
-from boxmot.ultralytics.utils import IterableSimpleNamespace, yaml_load
-from boxmot.ultralytics.utils.checks import check_yaml
+from ultralytics.utils import IterableSimpleNamespace, yaml_load
+from ultralytics.utils.checks import check_yaml
 
 from .bot_sort import BOTSORT
 from .byte_tracker import BYTETracker

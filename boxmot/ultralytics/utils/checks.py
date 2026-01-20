@@ -21,7 +21,7 @@ import requests
 import torch
 from matplotlib import font_manager
 
-from boxmot.ultralytics.utils import (ASSETS, AUTOINSTALL, LINUX, LOGGER, ONLINE, ROOT, USER_CONFIG_DIR, SimpleNamespace,
+from ultralytics.utils import (ASSETS, AUTOINSTALL, LINUX, LOGGER, ONLINE, ROOT, USER_CONFIG_DIR, SimpleNamespace,
                                ThreadingLocked, TryExcept, clean_url, colorstr, downloads, emojis, is_colab, is_docker,
                                is_jupyter, is_kaggle, is_online, is_pip_package, url2file)
 
@@ -39,7 +39,7 @@ def parse_requirements(file_path=ROOT.parent / 'requirements.txt', package=''):
 
     Example:
         ```python
-        from boxmot.ultralytics.utils.checks import parse_requirements
+        from ultralytics.utils.checks import parse_requirements
 
         parse_requirements(package='ultralytics')
         ```
@@ -274,7 +274,7 @@ def check_pip_update_available():
     """
     if ONLINE and is_pip_package():
         with contextlib.suppress(Exception):
-            from boxmot.ultralytics import __version__
+            from ultralytics import __version__
             latest = check_latest_pypi_version()
             if check_version(__version__, f'<{latest}'):  # check if current version is < latest version
                 LOGGER.info(f'New https://pypi.org/project/ultralytics/{latest} available 😃 '
@@ -340,7 +340,7 @@ def check_requirements(requirements=ROOT.parent / 'requirements.txt', exclude=()
 
     Example:
         ```python
-        from boxmot.ultralytics.utils.checks import check_requirements
+        from ultralytics.utils.checks import check_requirements
 
         # Check a requirements.txt file
         check_requirements('path/to/requirements.txt')
@@ -503,7 +503,7 @@ def check_yolo(verbose=True, device=''):
     """Return a human-readable YOLO software and hardware summary."""
     import psutil
 
-    from boxmot.ultralytics.utils.torch_utils import select_device
+    from ultralytics.utils.torch_utils import select_device
 
     if is_jupyter():
         if check_requirements('wandb', install=False):
@@ -532,8 +532,8 @@ def collect_system_info():
 
     import psutil
 
-    from boxmot.ultralytics.utils import ENVIRONMENT, is_git_dir
-    from boxmot.ultralytics.utils.torch_utils import get_cpu_info
+    from ultralytics.utils import ENVIRONMENT, is_git_dir
+    from ultralytics.utils.torch_utils import get_cpu_info
 
     ram_info = psutil.virtual_memory().total / (1024 ** 3)  # Convert bytes to GB
     check_yolo()
@@ -566,8 +566,8 @@ def check_amp(model):
 
     Example:
         ```python
-        from boxmot.ultralytics import YOLO
-        from boxmot.ultralytics.utils.checks import check_amp
+        from ultralytics import YOLO
+        from ultralytics.utils.checks import check_amp
 
         model = YOLO('yolov8n.pt').model.cuda()
         check_amp(model)
@@ -593,7 +593,7 @@ def check_amp(model):
     LOGGER.info(f'{prefix}running Automatic Mixed Precision (AMP) checks with YOLOv8n...')
     warning_msg = "Setting 'amp=True'. If you experience zero-mAP or NaN losses you can disable AMP with amp=False."
     try:
-        from boxmot.ultralytics import YOLO
+        from ultralytics import YOLO
         assert amp_allclose(YOLO('yolov8n.pt'), im)
         LOGGER.info(f'{prefix}checks passed ✅')
     except ConnectionError:

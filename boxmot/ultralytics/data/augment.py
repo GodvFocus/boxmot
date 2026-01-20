@@ -9,11 +9,11 @@ import numpy as np
 import torch
 import torchvision.transforms as T
 
-from boxmot.ultralytics.utils import LOGGER, colorstr
-from boxmot.ultralytics.utils.checks import check_version
-from boxmot.ultralytics.utils.instance import Instances
-from boxmot.ultralytics.utils.metrics import bbox_ioa
-from boxmot.ultralytics.utils.ops import segment2box
+from ultralytics.utils import LOGGER, colorstr
+from ultralytics.utils.checks import check_version
+from ultralytics.utils.instance import Instances
+from ultralytics.utils.metrics import bbox_ioa
+from ultralytics.utils.ops import segment2box
 
 from .utils import polygons2masks, polygons2masks_overlap
 

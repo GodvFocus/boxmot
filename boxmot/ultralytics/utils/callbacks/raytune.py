@@ -1,6 +1,6 @@
 # Ultralytics YOLO 🚀, AGPL-3.0 license
 
-from boxmot.ultralytics.utils import SETTINGS
+from ultralytics.utils import SETTINGS
 
 try:
     assert SETTINGS['raytune'] is True  # verify integration is enabled

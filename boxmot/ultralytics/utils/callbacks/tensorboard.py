@@ -1,6 +1,6 @@
 # Ultralytics YOLO 🚀, AGPL-3.0 license
 
-from boxmot.ultralytics.utils import LOGGER, SETTINGS, TESTS_RUNNING, colorstr
+from ultralytics.utils import LOGGER, SETTINGS, TESTS_RUNNING, colorstr
 
 try:
     # WARNING: do not move import due to protobuf issue in https://github.com/ultralytics/ultralytics/pull/4674
@@ -27,7 +27,7 @@ def _log_tensorboard_graph(trainer):
     try:
         import warnings
 
-        from boxmot.ultralytics.utils.torch_utils import de_parallel, torch
+        from ultralytics.utils.torch_utils import de_parallel, torch
 
         imgsz = trainer.args.imgsz
         imgsz = (imgsz, imgsz) if isinstance(imgsz, int) else imgsz

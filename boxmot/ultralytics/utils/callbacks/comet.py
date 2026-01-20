@@ -1,6 +1,6 @@
 # Ultralytics YOLO 🚀, AGPL-3.0 license
 
-from boxmot.ultralytics.utils import LOGGER, RANK, SETTINGS, TESTS_RUNNING, ops
+from ultralytics.utils import LOGGER, RANK, SETTINGS, TESTS_RUNNING, ops
 
 try:
     assert not TESTS_RUNNING  # do not log pytest
@@ -335,7 +335,7 @@ def on_fit_epoch_end(trainer):
     experiment.log_metrics(trainer.metrics, step=curr_step, epoch=curr_epoch)
     experiment.log_metrics(trainer.lr, step=curr_step, epoch=curr_epoch)
     if curr_epoch == 1:
-        from boxmot.ultralytics.utils.torch_utils import model_info_for_loggers
+        from ultralytics.utils.torch_utils import model_info_for_loggers
         experiment.log_metrics(model_info_for_loggers(trainer), step=curr_step, epoch=curr_epoch)
 
     if not save_assets:

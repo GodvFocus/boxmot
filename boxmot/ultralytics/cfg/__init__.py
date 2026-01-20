@@ -7,7 +7,7 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Dict, List, Union
 
-from boxmot.ultralytics.utils import (ASSETS, DEFAULT_CFG, DEFAULT_CFG_DICT, DEFAULT_CFG_PATH, LOGGER, RANK, ROOT, RUNS_DIR,
+from ultralytics.utils import (ASSETS, DEFAULT_CFG, DEFAULT_CFG_DICT, DEFAULT_CFG_PATH, LOGGER, RANK, ROOT, RUNS_DIR,
                                SETTINGS, SETTINGS_YAML, TESTS_RUNNING, IterableSimpleNamespace, __version__, checks,
                                colorstr, deprecation_warn, yaml_load, yaml_print)
 
@@ -151,7 +151,7 @@ def get_save_dir(args, name=None):
     if getattr(args, 'save_dir', None):
         save_dir = args.save_dir
     else:
-        from boxmot.ultralytics.utils.files import increment_path
+        from ultralytics.utils.files import increment_path
 
         project = args.project or (ROOT.parent / 'tests/tmp/runs' if TESTS_RUNNING else RUNS_DIR) / args.task
         name = name or args.name or f'{args.mode}'
@@ -243,14 +243,14 @@ def handle_yolo_hub(args: List[str]) -> None:
         python my_script.py hub login your_api_key
         ```
     """
-    from boxmot.ultralytics import hub
+    from ultralytics import hub
 
     if args[0] == 'login':
         key = args[1] if len(args) > 1 else ''
         # Log in to Ultralytics HUB using the provided API key
         hub.login(key)
     elif args[0] == 'logout':
-        # Log out from boxmot.ultralytics HUB
+        # Log out from Ultralytics HUB
         hub.logout()
 
 
@@ -406,16 +406,16 @@ def entrypoint(debug=''):
         LOGGER.warning(f"WARNING ⚠️ 'model' is missing. Using default 'model={model}'.")
     overrides['model'] = model
     if 'rtdetr' in model.lower():  # guess architecture
-        from boxmot.ultralytics import RTDETR
+        from ultralytics import RTDETR
         model = RTDETR(model)  # no task argument
     elif 'fastsam' in model.lower():
-        from boxmot.ultralytics import FastSAM
+        from ultralytics import FastSAM
         model = FastSAM(model)
     elif 'sam' in model.lower():
-        from boxmot.ultralytics import SAM
+        from ultralytics import SAM
         model = SAM(model)
     else:
-        from boxmot.ultralytics import YOLO
+        from ultralytics import YOLO
         model = YOLO(model, task=task)
     if isinstance(overrides.get('pretrained'), str):
         model.load(overrides['pretrained'])

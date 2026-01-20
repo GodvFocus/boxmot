@@ -1,6 +1,6 @@
 # Ultralytics YOLO 🚀, AGPL-3.0 license
 
-from boxmot.ultralytics.utils import LOGGER, SETTINGS, TESTS_RUNNING
+from ultralytics.utils import LOGGER, SETTINGS, TESTS_RUNNING
 
 try:
     assert not TESTS_RUNNING  # do not log pytest
@@ -69,7 +69,7 @@ def on_train_epoch_end(trainer):
 def on_fit_epoch_end(trainer):
     """Callback function called at end of each fit (train+val) epoch."""
     if run and trainer.epoch == 0:
-        from boxmot.ultralytics.utils.torch_utils import model_info_for_loggers
+        from ultralytics.utils.torch_utils import model_info_for_loggers
         run['Configuration/Model'] = model_info_for_loggers(trainer)
     _log_scalars(trainer.metrics, trainer.epoch + 1)
 

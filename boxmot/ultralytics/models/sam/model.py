@@ -2,7 +2,7 @@
 """
 SAM model interface.
 
-This module provides an interface to the Segment Anything Model (SAM) from boxmot.ultralytics, designed for real-time image
+This module provides an interface to the Segment Anything Model (SAM) from Ultralytics, designed for real-time image
 segmentation tasks. The SAM model allows for promptable segmentation with unparalleled versatility in image analysis,
 and has been trained on the SA-1B dataset. It features zero-shot performance capabilities, enabling it to adapt to new
 image distributions and tasks without prior knowledge.
@@ -16,8 +16,8 @@ Key Features:
 
 from pathlib import Path
 
-from boxmot.ultralytics.engine.model import Model
-from boxmot.ultralytics.utils.torch_utils import model_info
+from ultralytics.engine.model import Model
+from ultralytics.utils.torch_utils import model_info
 
 from .build import build_sam
 from .predict import Predictor

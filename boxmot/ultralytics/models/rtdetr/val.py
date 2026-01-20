@@ -4,10 +4,10 @@ from pathlib import Path
 
 import torch
 
-from boxmot.ultralytics.data import YOLODataset
-from boxmot.ultralytics.data.augment import Compose, Format, v8_transforms
-from boxmot.ultralytics.models.yolo.detect import DetectionValidator
-from boxmot.ultralytics.utils import colorstr, ops
+from ultralytics.data import YOLODataset
+from ultralytics.data.augment import Compose, Format, v8_transforms
+from ultralytics.models.yolo.detect import DetectionValidator
+from ultralytics.utils import colorstr, ops
 
 __all__ = 'RTDETRValidator',  # tuple or list
 
@@ -59,7 +59,7 @@ class RTDETRValidator(DetectionValidator):
 
     Example:
         ```python
-        from boxmot.ultralytics.models.rtdetr import RTDETRValidator
+        from ultralytics.models.rtdetr import RTDETRValidator
 
         args = dict(model='rtdetr-l.pt', data='coco8.yaml')
         validator = RTDETRValidator(args=args)
