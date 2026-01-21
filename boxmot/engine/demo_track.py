@@ -4,6 +4,7 @@ import cv2, os, shutil
 import numpy as np
 from pathlib import Path
 from ultralytics import YOLO
+from ultralytics import RTDETR
 from boxmot import DeepOcSort, ByteTrack, BotSort, StrongSort, OcSort, HybridSort
 
 
@@ -49,6 +50,11 @@ def display_frame(image_plot, delay=1):
 
 # boxmot                        10.0.57
 if __name__ == '__main__':
+    # import boxmot.engine.ultralytics as ultralytics
+
+    # # 打印实际加载的ultralytics包的根路径（最关键）
+    # print("\n=== 实际加载的ultralytics路径 ===")
+    # print(ultralytics.__file__)
     # Toggle settings
     SAVE_VIDEO = False  # Set to True to save video, False to only display
     SHOW_WINDOW = True  # Set to True to display cv2 window
@@ -59,7 +65,11 @@ if __name__ == '__main__':
             shutil.rmtree(output_dir)
         os.makedirs(output_dir, exist_ok=True)
     
-    model = YOLO('yolo11s.pt') # select your model.pt path
+    # model = YOLO('yolo11s.pt') # select your model.pt path
+    model = RTDETR('rtdetr.pt')
+    print(f"Task: {model.task}")
+    print(f"Device: {model.device}")
+    print(f"Model info:\n{model.info()}")
     
     video_base_path = 'videos'
     for video_path in os.listdir(video_base_path):
