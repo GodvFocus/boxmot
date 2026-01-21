@@ -94,13 +94,13 @@ Where:
 **Quick Examples:**
 ```bash
 # Track with webcam, save results, show basic results
-boxmot track rtdetr_v2_r101vd osnet_x0_25_msmt17 deepocsort --source 0 --show --save
+boxmot track yolov8n osnet_x0_25_msmt17 botsort --source videos/palace.mp4 --show
 
 # Track a video file, save results, show trajectories + lost tracks
-boxmot track yolov8n osnet_x0_25_msmt17 botsort --source video.mp4 --save --show-trajectories --show-lost
+boxmot track yolov8n osnet_x0_25_msmt17 botsort --source videos/palace.mp4 --save --show-trajectories --show-lost
 
 # Evaluate on MOT dataset
-boxmot eval yolox_x_MOT17_ablation lmbn_n_duke botsort --source MOT17-ablation
+boxmot eval yolov8n osnet_x0_25_msmt17 botsort --source MOT17-ablation
 
 # Evaluate on MOT dataset + GBRC postprocessing
 boxmot eval yolox_x_MOT17_ablation lmbn_n_duke botsort --source MOT17-ablation --postprocessing gbrc
