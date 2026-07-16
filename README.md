@@ -96,19 +96,19 @@ Where:
 # Track with webcam, save results, show basic results
 boxmot track yolov8n osnet_x0_25_msmt17 botsort --source videos/palace.mp4 --show
 
-# Track a video file, save results, show trajectories + lost tracks
+# 追踪视频文件，保存结果，展示轨迹与丢失轨迹
 boxmot track yolov8n osnet_x0_25_msmt17 botsort --source videos/palace.mp4 --save --show-trajectories --show-lost
 
-# Evaluate on MOT dataset
+# 在 MOT dataset 上评估
 boxmot eval yolov8n osnet_x0_25_msmt17 botsort --source MOT17-ablation
 
-# Evaluate on MOT dataset + GBRC postprocessing
+# 在 MOT dataset 上评估 + GBRC postprocessing
 boxmot eval yolox_x_MOT17_ablation lmbn_n_duke botsort --source MOT17-ablation --postprocessing gbrc
 
-# Tune ocsort's hyperparameters for visdrone
+# 优化 ocsort 在 visdrone 数据集上的超参数
 boxmot tune yolox_x_dancetrack_ablation lmbn_n_duke ocsort --source visdrone-ablation --n-trials 10
 
-# Export ReID model with dynamic sized input
+# 导出支持动态尺寸输入的行人重识别模型
 boxmot export --weights osnet_x0_25_msmt17.pt --include onnx --include engine dynamic
 ```
 

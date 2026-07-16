@@ -63,3 +63,6 @@ boxmot/motion/cmc/*.jpg
 *_output.json
 *1.md
 *.mp4
+
+# Crash dumps
+*.stackdump
