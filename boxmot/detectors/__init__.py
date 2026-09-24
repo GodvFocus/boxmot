@@ -5,9 +5,10 @@ from boxmot.utils.checks import RequirementsChecker
 
 checker = RequirementsChecker()
 
-ULTRALYTICS_MODELS = {"yolov8", "yolov9", "yolov10", "yolo11", "yolo12", "sam", "rtdetr"}
+ULTRALYTICS_MODELS = {"yolov8", "yolov9", "yolov10", "yolo11", "yolo12", "sam", "rtdetr-r18","rtdetr","enhance","PKINet", "PSBCG"}
 RTDETR_MODELS = {"rtdetr_v2_r50vd", "rtdetr_v2_r18vd", "rtdetr_v2_r101vd"}
 YOLOX_MODELS = {"yolox_n", "yolox_s", "yolox_m", "yolox_l", "yolox_x"}
+ULTRALYTICS_RTDETR_WRAPPER_MODELS = {"rtdetr-r18", "rtdetr", "PKINet", "PSBCG"}
 
 
 def _check_model(name, markers):
@@ -25,6 +26,17 @@ def is_yolox_model(yolo_name):
 
 def is_rtdetr_model(yolo_name):
     return _check_model(yolo_name, RTDETR_MODELS)
+
+
+def uses_ultralytics_rtdetr_wrapper(yolo_name):
+    return _check_model(yolo_name, ULTRALYTICS_RTDETR_WRAPPER_MODELS)
+
+
+def get_ultralytics_wrapper(yolo_name):
+    from ultralytics import RTDETR, YOLO
+
+    # 这些模型仍由 Ultralytics 加载，但预测入口必须走 RTDETR 包装器。
+    return RTDETR if uses_ultralytics_rtdetr_wrapper(yolo_name) else YOLO
 
 
 def default_imgsz(yolo_name):

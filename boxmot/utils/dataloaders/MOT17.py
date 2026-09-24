@@ -9,6 +9,33 @@ from tqdm import tqdm
 from boxmot.utils import logger as LOGGER
 
 
+def _count_non_comment_rows(path: Path) -> int:
+    """统计缓存文件中的有效数据行数，便于区分空文件、单行文件和真实行数不匹配。"""
+    rows = 0
+    with open(path, "r") as f:
+        for line in f:
+            stripped = line.strip()
+            if stripped and not stripped.startswith("#"):
+                rows += 1
+    return rows
+
+
+def _shape_str(arr: np.ndarray) -> str:
+    """把 numpy shape 转成稳定日志文本。"""
+    return "x".join(str(v) for v in arr.shape)
+
+
+def _loadtxt_2d(path: Path, expected_cols: Optional[int] = None) -> np.ndarray:
+    """稳定读取缓存矩阵，避免空文件或单行文件被 numpy 转成难以判断的形状。"""
+    data = np.loadtxt(path, comments="#")
+    if data.size == 0:
+        cols = 0 if expected_cols is None else expected_cols
+        return np.empty((0, cols))
+    if data.ndim == 1:
+        return data.reshape(1, -1)
+    return data
+
+
 def read_seq_fps(seq_dir: Path) -> int:
     """
     Read the original FPS (frames per second) from the seqinfo.ini file of a sequence.
@@ -44,6 +71,7 @@ def compute_fps_mask(frames: np.ndarray, orig_fps: int, target_fps: int) -> np.n
 
 
 class MOT17DetEmbDataset:
+    # TODO 低准确率排查方向
     """
     A dataset class to manage MOT17 sequences with optional detection and embedding data.
     """
@@ -104,6 +132,20 @@ class MOT17DetEmbDataset:
                 'det_path': det_path,
                 'emb_path': emb_path
             }
+            LOGGER.info(
+                "Dataset index | seq={} | seq_dir={} | img_dir={} | frames={} | min_frame={} | max_frame={} | "
+                "det_path={} | det_exists={} | emb_path={} | emb_exists={}",
+                name,
+                seq_dir,
+                img_dir,
+                len(frame_ids),
+                min(frame_ids) if frame_ids else None,
+                max(frame_ids) if frame_ids else None,
+                det_path,
+                det_path.exists() if det_path else None,
+                emb_path,
+                emb_path.exists() if emb_path else None,
+            )
 
     def sequence_names(self) -> List[str]:
         """
@@ -153,10 +195,52 @@ class MOT17Sequence:
     def _prepare(self) -> None:
         # 1) load dets & embs
         if self.meta['det_path'] and self.meta['emb_path']:
-            self.dets = np.loadtxt(self.meta['det_path'], comments="#")
-            self.embs = np.loadtxt(self.meta['emb_path'], comments="#")
-            if self.dets.shape[0] != self.embs.shape[0]:
-                raise ValueError(f"Row mismatch in {self.name}")
+            det_rows = _count_non_comment_rows(self.meta['det_path'])
+            emb_rows = _count_non_comment_rows(self.meta['emb_path'])
+            LOGGER.info(
+                "Cache load start | seq={} | det_path={} | det_rows={} | det_bytes={} | "
+                "emb_path={} | emb_rows={} | emb_bytes={}",
+                self.name,
+                self.meta['det_path'],
+                det_rows,
+                self.meta['det_path'].stat().st_size,
+                self.meta['emb_path'],
+                emb_rows,
+                self.meta['emb_path'].stat().st_size,
+            )
+            self.dets = _loadtxt_2d(self.meta['det_path'], expected_cols=7)
+            self.embs = _loadtxt_2d(self.meta['emb_path'])
+            LOGGER.info(
+                "Cache load | seq={} | det_path={} | det_rows={} | det_shape={} | "
+                "emb_path={} | emb_rows={} | emb_shape={} | frame_count={} | min_frame={} | max_frame={}",
+                self.name,
+                self.meta['det_path'],
+                det_rows,
+                _shape_str(self.dets),
+                self.meta['emb_path'],
+                emb_rows,
+                _shape_str(self.embs),
+                len(self.frame_ids),
+                int(self.frame_ids.min()) if len(self.frame_ids) else None,
+                int(self.frame_ids.max()) if len(self.frame_ids) else None,
+            )
+            if det_rows != emb_rows or self.dets.shape[0] != self.embs.shape[0]:
+                LOGGER.error(
+                    "Cache row mismatch | seq={} | det_path={} | det_rows={} | det_shape={} | "
+                    "emb_path={} | emb_rows={} | emb_shape={}",
+                    self.name,
+                    self.meta['det_path'],
+                    det_rows,
+                    _shape_str(self.dets),
+                    self.meta['emb_path'],
+                    emb_rows,
+                    _shape_str(self.embs),
+                )
+                raise ValueError(
+                    f"Row mismatch in {self.name}: "
+                    f"dets shape={self.dets.shape}, rows={det_rows}, path={self.meta['det_path']}; "
+                    f"embs shape={self.embs.shape}, rows={emb_rows}, path={self.meta['emb_path']}"
+                )
 
             # 2) if target_fps, build mask once
             if self.target_fps:

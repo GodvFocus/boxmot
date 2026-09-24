@@ -8,8 +8,9 @@ import numpy as np
 import torch
 
 from boxmot import TRACKERS
-from boxmot.detectors import (default_imgsz, get_yolo_inferer,
-                              is_ultralytics_model, is_rtdetr_model)
+from boxmot.detectors import (default_imgsz, get_ultralytics_wrapper,
+                              get_yolo_inferer, is_ultralytics_model,
+                              is_rtdetr_model)
 from boxmot.trackers.tracker_zoo import create_tracker
 from boxmot.utils import TRACKER_CONFIGS
 from boxmot.utils import logger as LOGGER
@@ -18,9 +19,6 @@ from boxmot.utils.timing import TimingStats, wrap_tracker_reid
 
 checker = RequirementsChecker()
 checker.check_packages(("ultralytics", ))  # install
-
-from ultralytics import YOLO, RTDETR
-
 
 class VideoWriter:
     """Handles video writing for tracking results."""
@@ -252,7 +250,8 @@ def main(args):
     # yolo = YOLO(
     #     args.yolo_model if is_ultralytics_model(args.yolo_model) else "yolov8n.pt",
     # )
-    yolo = RTDETR(
+    ultralytics_wrapper = get_ultralytics_wrapper(args.yolo_model)
+    yolo = ultralytics_wrapper(
         str(args.yolo_model) if is_ultralytics_model(args.yolo_model) else "yolov8n.pt",
     )
 

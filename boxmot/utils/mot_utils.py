@@ -90,22 +90,11 @@ def split_dataset(src_fldr: Path, percent_to_delete: float = 0.5) -> Tuple[Path,
 
 
 def convert_to_mot_format(
-    results: Union[Results, np.ndarray], frame_idx: int
+    results: Union[Results, np.ndarray],
+    frame_idx: int,
+    class_id_offset: int = 1,
 ) -> np.ndarray:
-    """
-    Converts tracking results for a single frame into MOT challenge format.
-
-    This function supports inputs as either a custom object with a 'boxes' attribute or a numpy array.
-    For custom object inputs, 'boxes' should contain 'id', 'xyxy', 'conf', and 'cls' sub-attributes.
-    For numpy array inputs, the expected format per row is: (xmin, ymin, xmax, ymax, id, conf, cls).
-
-    Parameters:
-    - results (Union[Results, np.ndarray]): Tracking results for the current frame.
-    - frame_idx (int): The zero-based index of the frame being processed.
-
-    Returns:
-    - np.ndarray: An array containing the MOT formatted results for the frame.
-    """
+    """将单帧跟踪结果转换为 TrackEval 读取的 MOT 文本格式。"""
 
     # Check if results are not empty
     if results.size != 0:
@@ -118,7 +107,7 @@ def convert_to_mot_format(
                 results[:, 4].astype(np.int32),  # track id
                 tlwh.round().astype(np.int32),  # top,left,width,height
                 np.ones((results.shape[0], 1), dtype=np.int32),  # "not ignored"
-                results[:, 6].astype(np.int32) + 1,  # class
+                results[:, 6].astype(np.int32) + class_id_offset,  # class
                 results[:, 5],  # confidence (float)
             ))
             return mot_results
@@ -133,7 +122,7 @@ def convert_to_mot_format(
                 results.boxes.id.unsqueeze(1).astype(np.int32), # track id
                 ops.xyxy2ltwh(results.boxes.xyxy).astype(np.int32),  ## top,left,width,height
                 not_ignored, # "not ignored"
-                results.boxes.cls.unsqueeze(1).astype(np.int32) + 1, # class
+                results.boxes.cls.unsqueeze(1).astype(np.int32) + class_id_offset, # class
                 results.boxes.conf.unsqueeze(1).astype(np.float32), # confidence (float)
             ], dim=1)
 

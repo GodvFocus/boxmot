@@ -65,7 +65,7 @@ if __name__ == '__main__':
     config = {**default_eval_config, **default_dataset_config, **default_metrics_config}  # Merge default configs
     parser = argparse.ArgumentParser()
     for setting in config.keys():
-        if setting == 'DISTRACTOR_CLASS_IDS':
+        if setting in {'DISTRACTOR_CLASS_IDS', 'IGNORE_CLASS_IDS'}:
             parser.add_argument("--" + setting, nargs='*')  # allow empty list
         elif type(config[setting]) == list or type(config[setting]) == type(None):
             parser.add_argument("--" + setting, nargs='+')
@@ -83,6 +83,8 @@ if __name__ == '__main__':
                     raise Exception('Command line parameter ' + setting + 'must be True or False')
             elif type(config[setting]) == type(1):
                 x = int(args[setting])
+            elif type(config[setting]) == type(0.5):
+                x = float(args[setting])
             elif type(args[setting]) == type(None):
                 x = None
             elif setting == 'SEQ_INFO':
@@ -97,7 +99,7 @@ if __name__ == '__main__':
                     else:
                         seq_info_dict[entry] = None
                 x = seq_info_dict
-            elif setting in {'CLASS_IDS', 'DISTRACTOR_CLASS_IDS'}:
+            elif setting in {'CLASS_IDS', 'DISTRACTOR_CLASS_IDS', 'IGNORE_CLASS_IDS'}:
                 x = [int(v) for v in args[setting]] if args[setting] is not None else []
             else:
                 x = args[setting]

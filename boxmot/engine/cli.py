@@ -72,7 +72,7 @@ def core_options(func):
                      help='video frame-rate stride'),
         click.option('--ci', is_flag=True,
                      help='reuse existing runs in CI (no UI)'),
-        click.option('--tracking-method', type=str, default='deepocsort',
+        click.option('--tracking-method', type=str, default='bytetrack',
                      help='deepocsort, botsort, strongsort, ...'),
         click.option('--verbose', is_flag=True,
                      help='print detailed logs'),
@@ -136,10 +136,10 @@ def parse_classes(classes_input):
 def singular_model_options(func):
     options = [
         click.option('--yolo-model', type=Path,
-                     default=WEIGHTS / 'yolov8n.pt',
+                     default=ROOT / 'yolov8n.pt',
                      help='path to YOLO weights for detection'),
         click.option('--reid-model', type=Path,
-                     default=WEIGHTS / 'osnet_x0_25_msmt17.pt',
+                     default=ROOT / 'osnet_x0_25_msmt17.pt',
                      help='path to ReID model weights'),
         click.option('--classes', type=str, default=None,
                      help='filter by class indices, e.g. 0 or "0,1"')

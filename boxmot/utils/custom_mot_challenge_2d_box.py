@@ -25,6 +25,8 @@ class CustomMotChallenge2DBox(MotChallenge2DBox):
         default_config['CLASSES_TO_EVAL'] = ['person']
         default_config['CLASS_IDS'] = [1]
         default_config['DISTRACTOR_CLASS_IDS'] = []
+        default_config['IGNORE_CLASS_IDS'] = []
+        default_config['IGNORE_IOA_THRESHOLD'] = 0.5
         return default_config
 
     def __init__(self, config=None):
@@ -35,6 +37,8 @@ class CustomMotChallenge2DBox(MotChallenge2DBox):
         real_classes = [cls.lower() for cls in cfg.get('CLASSES_TO_EVAL', ['person'])]
         class_ids = cfg.get('CLASS_IDS')
         distractor_ids = cfg.get('DISTRACTOR_CLASS_IDS') or []
+        ignore_class_ids = cfg.get('IGNORE_CLASS_IDS') or []
+        ignore_ioa_threshold = cfg.get('IGNORE_IOA_THRESHOLD', 0.5)
 
         # Create a temp config with 'pedestrian' to pass super().__init__ validation
         temp_config = cfg.copy()
@@ -47,6 +51,8 @@ class CustomMotChallenge2DBox(MotChallenge2DBox):
         self.config['CLASSES_TO_EVAL'] = real_classes
         self.config['CLASS_IDS'] = class_ids
         self.config['DISTRACTOR_CLASS_IDS'] = distractor_ids
+        self.config['IGNORE_CLASS_IDS'] = ignore_class_ids
+        self.config['IGNORE_IOA_THRESHOLD'] = ignore_ioa_threshold
         
         # Overwrite class validation and list with real classes
         self.valid_classes = real_classes
@@ -59,7 +65,29 @@ class CustomMotChallenge2DBox(MotChallenge2DBox):
             self.class_name_to_class_id = DEFAULT_CLASS_NAME_TO_ID
 
         self.distractor_class_ids = [int(i) for i in distractor_ids] if distractor_ids else None
+        self.ignore_class_ids = [int(i) for i in ignore_class_ids]
+        self.ignore_ioa_threshold = float(ignore_ioa_threshold)
         self.valid_class_numbers = list(self.class_name_to_class_id.values())
+
+    def _load_raw_file(self, tracker, seq, is_gt):
+        """加载 MOT 数据，并从原始 GT 中分离 crowd ignore region。"""
+        raw_data = super()._load_raw_file(tracker, seq, is_gt)
+        if not is_gt or not self.ignore_class_ids:
+            return raw_data
+
+        for timestep in range(raw_data['num_timesteps']):
+            ignore_mask = np.isin(raw_data['gt_classes'][timestep], self.ignore_class_ids)
+            raw_data['gt_crowd_ignore_regions'][timestep] = raw_data['gt_dets'][timestep][ignore_mask]
+
+            keep_mask = ~ignore_mask
+            raw_data['gt_ids'][timestep] = raw_data['gt_ids'][timestep][keep_mask]
+            raw_data['gt_dets'][timestep] = raw_data['gt_dets'][timestep][keep_mask]
+            raw_data['gt_classes'][timestep] = raw_data['gt_classes'][timestep][keep_mask]
+            raw_data['gt_extras'][timestep]['zero_marked'] = (
+                raw_data['gt_extras'][timestep]['zero_marked'][keep_mask]
+            )
+
+        return raw_data
 
     @_timing.time
     def get_preprocessed_seq_data(self, raw_data, cls):
@@ -67,7 +95,7 @@ class CustomMotChallenge2DBox(MotChallenge2DBox):
         cls_id = self.class_name_to_class_id[cls]
         # MOT distractor set; prefer config override, otherwise fall back to legacy defaults
         #if self.distractor_class_ids is not None:
-        distractor_classes = self.distractor_class_ids
+        distractor_classes = self.distractor_class_ids or []
         # else:
         #     distractor_classes = [12, 8, 6, 7, 2] if self.benchmark == 'MOT20' else [12, 8, 7, 2]
 
@@ -123,6 +151,41 @@ class CustomMotChallenge2DBox(MotChallenge2DBox):
                 gt_keep_mask = (gt_zero_marked != 0) & (gt_classes == cls_id)
             else:
                 gt_keep_mask = (gt_zero_marked != 0)
+
+            # 只对没有匹配有效 GT 的预测应用 ignore-region 过滤，避免误删真实匹配。
+            crowd_ignore_regions = raw_data['gt_crowd_ignore_regions'][t]
+            if kept_tracker_ids.shape[0] > 0 and crowd_ignore_regions.shape[0] > 0:
+                eval_sim = sim[gt_keep_mask, :]
+                matched_tracker_cols = np.empty(0, dtype=int)
+                if eval_sim.shape[0] > 0 and eval_sim.shape[1] > 0:
+                    matching_scores = eval_sim.copy()
+                    matching_scores[matching_scores < 0.5 - np.finfo('float').eps] = 0
+                    match_rows, match_cols = linear_sum_assignment(-matching_scores)
+                    actually_matched = matching_scores[match_rows, match_cols] > np.finfo('float').eps
+                    matched_tracker_cols = match_cols[actually_matched]
+
+                unmatched_tracker_cols = np.setdiff1d(
+                    np.arange(kept_tracker_ids.shape[0]),
+                    matched_tracker_cols,
+                    assume_unique=True,
+                )
+                unmatched_tracker_dets = kept_tracker_dets[unmatched_tracker_cols]
+                ignore_ioas = self._calculate_box_ious(
+                    unmatched_tracker_dets,
+                    crowd_ignore_regions,
+                    box_format='xywh',
+                    do_ioa=True,
+                )
+                within_ignore = np.any(
+                    ignore_ioas > self.ignore_ioa_threshold + np.finfo('float').eps,
+                    axis=1,
+                )
+                tracker_cols_to_remove = unmatched_tracker_cols[within_ignore]
+                if tracker_cols_to_remove.size > 0:
+                    kept_tracker_ids = np.delete(kept_tracker_ids, tracker_cols_to_remove, axis=0)
+                    kept_tracker_dets = np.delete(kept_tracker_dets, tracker_cols_to_remove, axis=0)
+                    kept_tracker_confs = np.delete(kept_tracker_confs, tracker_cols_to_remove, axis=0)
+                    sim = np.delete(sim, tracker_cols_to_remove, axis=1)
 
             kept_gt_ids  = gt_ids[gt_keep_mask]
             kept_gt_dets = gt_dets[gt_keep_mask, :] if gt_dets.size else gt_dets
