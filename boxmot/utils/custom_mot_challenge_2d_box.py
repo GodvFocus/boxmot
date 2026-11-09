@@ -1,3 +1,5 @@
+from typing import Optional
+
 import numpy as np
 from scipy.optimize import linear_sum_assignment
 from trackeval.datasets.mot_challenge_2d_box import MotChallenge2DBox
@@ -15,6 +17,106 @@ DEFAULT_CLASS_NAME_TO_ID = {
     'toaster': 71, 'sink': 72, 'refrigerator': 73, 'book': 74, 'clock': 75, 'vase': 76, 'scissors': 77, 'teddy bear': 78, 'hair drier': 79, 'toothbrush': 80
 }
 
+
+def _rectangle_union_area(rectangles: np.ndarray) -> float:
+    """计算轴对齐矩形并集面积，避免重叠 ignore region 被重复计数。"""
+    if rectangles.size == 0:
+        return 0.0
+
+    x_edges = np.unique(rectangles[:, [0, 2]])
+    area = 0.0
+    for x_left, x_right in zip(x_edges[:-1], x_edges[1:]):
+        if x_right <= x_left:
+            continue
+
+        active = rectangles[(rectangles[:, 0] < x_right) & (rectangles[:, 2] > x_left)]
+        if active.size == 0:
+            continue
+
+        intervals = active[:, [1, 3]][np.argsort(active[:, 1])]
+        covered_y = 0.0
+        current_start, current_end = intervals[0]
+        for start, end in intervals[1:]:
+            if start > current_end:
+                covered_y += current_end - current_start
+                current_start, current_end = start, end
+            else:
+                current_end = max(current_end, end)
+        covered_y += current_end - current_start
+        area += (x_right - x_left) * covered_y
+
+    return float(area)
+
+
+def _official_ignore_coverages(
+    detections: np.ndarray,
+    ignore_regions: np.ndarray,
+    image_size: Optional[tuple[int, int]] = None,
+) -> np.ndarray:
+    """按 VisDrone 官方 ignore mask 语义计算每个预测框的覆盖比例。
+
+    官方 MATLAB 实现先对坐标取整，再用所有 ignore region 的并集面积除以
+    当前框面积。这里直接计算矩形并集，避免创建整幅图像大小的临时 mask。
+    """
+    if detections.size == 0:
+        return np.empty(0, dtype=float)
+    if ignore_regions.size == 0:
+        return np.zeros(len(detections), dtype=float)
+
+    # VisDrone 标注坐标非负；floor(x + 0.5) 与 MATLAB 对非负数的 round 一致。
+    rounded_detections = np.maximum(1.0, np.floor(np.asarray(detections, dtype=float) + 0.5))
+    rounded_regions = np.maximum(1.0, np.floor(np.asarray(ignore_regions, dtype=float) + 0.5))
+    # MATLAB 的 ignore mask 会包含 region 的两个端点；转换成半开区间时右端需 +1。
+    region_x2 = rounded_regions[:, 0] + rounded_regions[:, 2]
+    region_y2 = rounded_regions[:, 1] + rounded_regions[:, 3]
+    if image_size is not None:
+        image_height, image_width = image_size
+        region_x2 = np.minimum(float(image_width), region_x2)
+        region_y2 = np.minimum(float(image_height), region_y2)
+    region_x2 += 1.0
+    region_y2 += 1.0
+    region_xyxy = np.column_stack(
+        (rounded_regions[:, 0], rounded_regions[:, 1], region_x2, region_y2)
+    )
+
+    coverages = np.zeros(len(rounded_detections), dtype=float)
+    for index, (x, y, width, height) in enumerate(rounded_detections):
+        area = width * height
+        if area <= 0:
+            continue
+
+        if image_size is not None:
+            image_height, image_width = image_size
+            x = min(float(image_width), x)
+            y = min(float(image_height), y)
+            x2 = min(float(image_width), x + width)
+            y2 = min(float(image_height), y + height)
+        else:
+            x2 = x + width
+            y2 = y + height
+
+        # 官方积分图公式统计 (x, x+w] × (y, y+h]，因此查询左端需要 +1；
+        # 右端转成半开区间同样 +1，宽高仍保持原始 w、h。
+        x += 1.0
+        y += 1.0
+        x2 += 1.0
+        y2 += 1.0
+        intersections = np.column_stack(
+            (
+                np.maximum(x, region_xyxy[:, 0]),
+                np.maximum(y, region_xyxy[:, 1]),
+                np.minimum(x2, region_xyxy[:, 2]),
+                np.minimum(y2, region_xyxy[:, 3]),
+            )
+        )
+        intersections = intersections[
+            (intersections[:, 2] > intersections[:, 0])
+            & (intersections[:, 3] > intersections[:, 1])
+        ]
+        coverages[index] = min(1.0, _rectangle_union_area(intersections) / area)
+
+    return coverages
+
 class CustomMotChallenge2DBox(MotChallenge2DBox):
     """Custom Dataset class for MOT Challenge 2D bounding box tracking with multi-class support"""
 
@@ -27,6 +129,7 @@ class CustomMotChallenge2DBox(MotChallenge2DBox):
         default_config['DISTRACTOR_CLASS_IDS'] = []
         default_config['IGNORE_CLASS_IDS'] = []
         default_config['IGNORE_IOA_THRESHOLD'] = 0.5
+        default_config['SEQ_IMAGE_SIZES'] = None
         return default_config
 
     def __init__(self, config=None):
@@ -39,6 +142,7 @@ class CustomMotChallenge2DBox(MotChallenge2DBox):
         distractor_ids = cfg.get('DISTRACTOR_CLASS_IDS') or []
         ignore_class_ids = cfg.get('IGNORE_CLASS_IDS') or []
         ignore_ioa_threshold = cfg.get('IGNORE_IOA_THRESHOLD', 0.5)
+        seq_image_sizes = cfg.get('SEQ_IMAGE_SIZES') or {}
 
         # Create a temp config with 'pedestrian' to pass super().__init__ validation
         temp_config = cfg.copy()
@@ -53,10 +157,13 @@ class CustomMotChallenge2DBox(MotChallenge2DBox):
         self.config['DISTRACTOR_CLASS_IDS'] = distractor_ids
         self.config['IGNORE_CLASS_IDS'] = ignore_class_ids
         self.config['IGNORE_IOA_THRESHOLD'] = ignore_ioa_threshold
+        self.config['SEQ_IMAGE_SIZES'] = seq_image_sizes
         
         # Overwrite class validation and list with real classes
         self.valid_classes = real_classes
         self.class_list = real_classes
+        # 只有多类别任务才需要跨类别汇总，单类别保持 TrackEval 原有输出结构。
+        self.should_classes_combine = len(real_classes) > 1
 
         # Build the class-id map from config if provided, otherwise fallback to COCO-80.
         if class_ids is not None and len(class_ids) == len(real_classes):
@@ -67,19 +174,34 @@ class CustomMotChallenge2DBox(MotChallenge2DBox):
         self.distractor_class_ids = [int(i) for i in distractor_ids] if distractor_ids else None
         self.ignore_class_ids = [int(i) for i in ignore_class_ids]
         self.ignore_ioa_threshold = float(ignore_ioa_threshold)
+        self.seq_image_sizes = {
+            str(seq): (int(size[0]), int(size[1]))
+            for seq, size in seq_image_sizes.items()
+        }
         self.valid_class_numbers = list(self.class_name_to_class_id.values())
 
     def _load_raw_file(self, tracker, seq, is_gt):
-        """加载 MOT 数据，并从原始 GT 中分离 crowd ignore region。"""
+        """加载 MOT 数据，并按官方规则清理 ignore region 内的 GT。"""
         raw_data = super()._load_raw_file(tracker, seq, is_gt)
         if not is_gt or not self.ignore_class_ids:
             return raw_data
 
         for timestep in range(raw_data['num_timesteps']):
             ignore_mask = np.isin(raw_data['gt_classes'][timestep], self.ignore_class_ids)
-            raw_data['gt_crowd_ignore_regions'][timestep] = raw_data['gt_dets'][timestep][ignore_mask]
+            ignore_regions = raw_data['gt_dets'][timestep][ignore_mask]
+            raw_data['gt_crowd_ignore_regions'][timestep] = ignore_regions
 
+            # 官方 dropObjects.m 会先移除 0/11，再移除 ignore 覆盖率达到 0.5 的有效 GT。
             keep_mask = ~ignore_mask
+            candidate_indices = np.flatnonzero(keep_mask)
+            if candidate_indices.size and ignore_regions.size:
+                coverages = _official_ignore_coverages(
+                    raw_data['gt_dets'][timestep][candidate_indices],
+                    ignore_regions,
+                    getattr(self, 'seq_image_sizes', {}).get(seq),
+                )
+                keep_mask[candidate_indices[coverages >= self.ignore_ioa_threshold]] = False
+
             raw_data['gt_ids'][timestep] = raw_data['gt_ids'][timestep][keep_mask]
             raw_data['gt_dets'][timestep] = raw_data['gt_dets'][timestep][keep_mask]
             raw_data['gt_classes'][timestep] = raw_data['gt_classes'][timestep][keep_mask]
@@ -126,6 +248,21 @@ class CustomMotChallenge2DBox(MotChallenge2DBox):
             sim = similarity_scores
             sim = sim[:, trk_keep_mask]  # always slice columns; may yield (N, 0)
 
+            # 官方 dropObjects.m 在类别匹配之前过滤所有落入 ignore 并集的预测框；
+            # 因此这里不能仅处理未匹配预测，否则会得到更宽松但不可复现的分数。
+            crowd_ignore_regions = raw_data['gt_crowd_ignore_regions'][t]
+            if kept_tracker_ids.shape[0] > 0 and crowd_ignore_regions.shape[0] > 0:
+                ignore_coverages = _official_ignore_coverages(
+                    kept_tracker_dets,
+                    crowd_ignore_regions,
+                    getattr(self, 'seq_image_sizes', {}).get(raw_data['seq']),
+                )
+                tracker_keep_mask = ignore_coverages < self.ignore_ioa_threshold
+                kept_tracker_ids = kept_tracker_ids[tracker_keep_mask]
+                kept_tracker_dets = kept_tracker_dets[tracker_keep_mask]
+                kept_tracker_confs = kept_tracker_confs[tracker_keep_mask]
+                sim = sim[:, tracker_keep_mask]
+
             # --- Remove trackers that match distractor GT (match vs ALL GT, not filtered by class) ---
             if self.do_preproc and self.benchmark != 'MOT15' and gt_ids.shape[0] > 0 and kept_tracker_ids.shape[0] > 0 and sim.size > 0:
                 # threshold & Hungarian (same as original)
@@ -151,41 +288,6 @@ class CustomMotChallenge2DBox(MotChallenge2DBox):
                 gt_keep_mask = (gt_zero_marked != 0) & (gt_classes == cls_id)
             else:
                 gt_keep_mask = (gt_zero_marked != 0)
-
-            # 只对没有匹配有效 GT 的预测应用 ignore-region 过滤，避免误删真实匹配。
-            crowd_ignore_regions = raw_data['gt_crowd_ignore_regions'][t]
-            if kept_tracker_ids.shape[0] > 0 and crowd_ignore_regions.shape[0] > 0:
-                eval_sim = sim[gt_keep_mask, :]
-                matched_tracker_cols = np.empty(0, dtype=int)
-                if eval_sim.shape[0] > 0 and eval_sim.shape[1] > 0:
-                    matching_scores = eval_sim.copy()
-                    matching_scores[matching_scores < 0.5 - np.finfo('float').eps] = 0
-                    match_rows, match_cols = linear_sum_assignment(-matching_scores)
-                    actually_matched = matching_scores[match_rows, match_cols] > np.finfo('float').eps
-                    matched_tracker_cols = match_cols[actually_matched]
-
-                unmatched_tracker_cols = np.setdiff1d(
-                    np.arange(kept_tracker_ids.shape[0]),
-                    matched_tracker_cols,
-                    assume_unique=True,
-                )
-                unmatched_tracker_dets = kept_tracker_dets[unmatched_tracker_cols]
-                ignore_ioas = self._calculate_box_ious(
-                    unmatched_tracker_dets,
-                    crowd_ignore_regions,
-                    box_format='xywh',
-                    do_ioa=True,
-                )
-                within_ignore = np.any(
-                    ignore_ioas > self.ignore_ioa_threshold + np.finfo('float').eps,
-                    axis=1,
-                )
-                tracker_cols_to_remove = unmatched_tracker_cols[within_ignore]
-                if tracker_cols_to_remove.size > 0:
-                    kept_tracker_ids = np.delete(kept_tracker_ids, tracker_cols_to_remove, axis=0)
-                    kept_tracker_dets = np.delete(kept_tracker_dets, tracker_cols_to_remove, axis=0)
-                    kept_tracker_confs = np.delete(kept_tracker_confs, tracker_cols_to_remove, axis=0)
-                    sim = np.delete(sim, tracker_cols_to_remove, axis=1)
 
             kept_gt_ids  = gt_ids[gt_keep_mask]
             kept_gt_dets = gt_dets[gt_keep_mask, :] if gt_dets.size else gt_dets

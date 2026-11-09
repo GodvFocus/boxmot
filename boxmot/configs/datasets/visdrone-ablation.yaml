@@ -4,22 +4,26 @@
 # Many YOLO/Ultralytics conversions drop 0 & 11 and reindex 1-10 to 0-9.
 download:
   runs_url: ""
-  dataset_url: "https://drive.google.com/uc?export=download&id=14z8Acxopj1d86-qhsF1NwS4Bv3KYa4Wu"
+  dataset_url: ""
+  dataset_dest: "E:\\Experiment\\datasets\\VisDrone-MOT\\VisDrone2019-MOT-test-dev"
+  # dataset_dest: "../datasets/VisDrone-MOT/VisDrone2019-MOT-test-dev"
 
 benchmark:
-  source: "boxmot/engine/trackeval/VisDrone2019-MOT-test-dev"
+  source: "E:\\Experiment\\datasets\\VisDrone-MOT\\VisDrone2019-MOT-test-dev"
+  # source: "../datasets/VisDrone-MOT/VisDrone2019-MOT-test-dev"
   split: "sequences"
+  # 论文主结果遵循 VisDrone 官方 MOT 协议：只评估五类，并读取保留 0/11 ignore region 的原始十列标注。
+  gt_folder: "annotations_old"
+  gt_loc_format: "{gt_folder}/{seq}.txt"
+  tracker_class_id_offset: 1
   eval_classes:
     1: pedestrian
-    2: people
-    3: bicycle
     4: car
     5: van
     6: truck
-    7: tricycle
-    8: awning-tricycle
     9: bus
-    10: motor
-  distractor_classes:
-    0: ignored regions
-    11: others
+  ignore_region_classes:
+    - 0
+    - 11
+  # 官方 dropObjects.m 会删除 ignore region 并集覆盖率达到 50% 的 GT 与预测框。
+  ignore_ioa_threshold: 0.5

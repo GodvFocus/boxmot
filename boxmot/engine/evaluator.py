@@ -61,6 +61,9 @@ COCO_CLASSES = [
     'toaster', 'sink', 'refrigerator', 'book', 'clock', 'vase', 'scissors', 'teddy bear', 'hair drier', 'toothbrush'
 ]
 
+TRACKEVAL_DETECTION_AVERAGE_KEY = "cls_comb_det_av"
+OVERALL_RESULT_KEY = "overall"
+
 
 def load_dataset_cfg(name: str) -> dict:
     """Load the dict from boxmot/configs/datasets/{name}.yaml."""
@@ -312,17 +315,42 @@ def generate_dets_embs(args: argparse.Namespace, y: Path, source: Path) -> None:
 
 def parse_mot_results(results: str) -> dict:
     """
-    Extracts COMBINED HOTA, MOTA, IDF1, AssA, AssRe, IDSW, and IDs from MOTChallenge evaluation output.
-    Returns a dictionary keyed by class name.
+    从 MOTChallenge 评估输出中提取各类别及跨类别 COMBINED 指标。
+
+    返回以类别名为键的字典；TrackEval 的跨类别键保持原名，便于调用方明确选择
+    class-averaged 或 detection-averaged 口径。
     """
     metric_specs = {
-        'HOTA':   ('HOTA:',      {'HOTA': 0, 'AssA': 2, 'AssRe': 5}),
-        'MOTA':   ('CLEAR:',     {'MOTA': 0, 'IDSW': 12}),
-        'IDF1':   ('Identity:',  {'IDF1': 0}),
-        'IDs':    ('Count:',     {'IDs': 2}),
+        'HOTA': (
+            'HOTA:',
+            {
+                'HOTA': 0,
+                'DetA': 1,
+                'AssA': 2,
+                'DetRe': 3,
+                'DetPr': 4,
+                'AssRe': 5,
+                'AssPr': 6,
+                'LocA': 7,
+            },
+        ),
+        'MOTA': (
+            'CLEAR:',
+            {
+                'MOTA': 0,
+                'MOTP': 1,
+                'CLR_Re': 3,
+                'CLR_Pr': 4,
+                'FN': 10,
+                'FP': 11,
+                'IDSW': 12,
+            },
+        ),
+        'IDF1': ('Identity:', {'IDF1': 0, 'IDR': 1, 'IDP': 2, 'IDTP': 3, 'IDFN': 4, 'IDFP': 5}),
+        'IDs': ('Count:', {'Dets': 0, 'GT_Dets': 1, 'IDs': 2, 'GT_IDs': 3}),
     }
 
-    int_fields = {'IDSW', 'IDs'}
+    int_fields = {'FN', 'FP', 'IDSW', 'IDTP', 'IDFN', 'IDFP', 'Dets', 'GT_Dets', 'IDs', 'GT_IDs'}
     parsed_results = {}
     
     lines = results.splitlines()
@@ -370,6 +398,29 @@ def parse_mot_results(results: str) -> dict:
                         parsed_results[current_class][key] = int(val) if key in int_fields else float(val)
 
     return parsed_results
+
+
+def build_mot_results_summary(
+    parsed_results: dict[str, dict],
+    class_names: list[str],
+) -> dict[str, dict]:
+    """筛选指定类别，并将 TrackEval 的 detection-averaged 跨类别结果命名为 overall。
+
+    VisDrone 官方评估会先汇总所有类别与序列的基础计数，再重算最终指标；
+    TrackEval 的 ``cls_comb_det_av`` 与这一口径一致。``cls_comb_cls_av`` 是宏平均，
+    不应作为 VisDrone 论文主结果。
+    """
+    class_results = {
+        class_name: parsed_results[class_name]
+        for class_name in class_names
+        if class_name in parsed_results
+    }
+    if len(class_names) > 1 and TRACKEVAL_DETECTION_AVERAGE_KEY in parsed_results:
+        return {
+            OVERALL_RESULT_KEY: parsed_results[TRACKEVAL_DETECTION_AVERAGE_KEY],
+            **class_results,
+        }
+    return class_results
 
 
 def _sequence_img_dir(seq_dir: Path) -> Path:
@@ -501,6 +552,34 @@ def resolve_tracker_class_id_offset(args: argparse.Namespace) -> int:
     return 1
 
 
+def validate_tracker_class_id_alignment(
+    tracker_precheck: dict[str, dict],
+    class_id_offset: int,
+) -> None:
+    """拒绝与当前编号协议不一致的 tracker 缓存，避免静默生成错误指标。"""
+    if class_id_offset <= 0:
+        return
+
+    invalid_classes = {}
+    for seq_name, state in tracker_precheck.items():
+        class_counts = state.get("tracker_class_counts", {})
+        invalid = {
+            int(class_id): int(count)
+            for class_id, count in class_counts.items()
+            if int(class_id) < class_id_offset
+        }
+        if invalid:
+            invalid_classes[seq_name] = invalid
+
+    if invalid_classes:
+        raise ValueError(
+            "Tracker 结果的类别编号与当前评估配置不一致："
+            f"tracker_class_id_offset={class_id_offset}，但发现更小的类别 ID "
+            f"{invalid_classes}。这些文件通常是旧的 0-based 缓存；请重新生成 MOT "
+            "结果后再评估，不能直接用于论文指标。"
+        )
+
+
 def format_gt_path(gt_folder: Path, gt_loc_format: str, seq_name: str) -> Path:
     """按 TrackEval 的路径模板解析单个序列 GT 文件。"""
     return Path(gt_loc_format.format(gt_folder=str(gt_folder), seq=seq_name))
@@ -536,6 +615,18 @@ def trackeval(
         length = seq_info[name]
         seq_info_args.append(f"{name}:{length}" if length else name)
 
+    seq_image_sizes = {}
+    for seq_path in seq_paths:
+        seq_name = seq_path.parent.name if seq_path.name == "img1" else seq_path.name
+        frame_files = sorted(list(seq_path.glob("*.jpg")) + list(seq_path.glob("*.png")))
+        if not frame_files:
+            continue
+        frame = cv2.imread(str(frame_files[0]))
+        if frame is None:
+            LOGGER.warning("无法读取序列 {} 的首帧尺寸，ignore region 将跳过图像边界裁剪", seq_name)
+            continue
+        seq_image_sizes[seq_name] = frame.shape[:2]
+
     # 获取数据集配置
     dataset_settings = build_dataset_eval_settings(args, gt_folder, seq_info)
     classes_to_eval = dataset_settings["classes_to_eval"]
@@ -566,6 +657,16 @@ def trackeval(
         "--IGNORE_IOA_THRESHOLD", str(ignore_ioa_threshold),
         "--SEQ_INFO", *seq_info_args
     ]
+    if seq_image_sizes:
+        cmd_args.extend(
+            [
+                "--SEQ_IMAGE_SIZES",
+                *[
+                    f"{name}:{height}:{width}"
+                    for name, (height, width) in sorted(seq_image_sizes.items())
+                ],
+            ]
+        )
     LOGGER.info("TrackEval command | {}", " ".join(str(arg) for arg in cmd_args))
 
     p = subprocess.Popen(
@@ -1005,6 +1106,10 @@ def run_trackeval(opt: argparse.Namespace, verbose: bool = True) -> dict:
         missing_tracker_files,
         tracker_precheck,
     )
+    validate_tracker_class_id_alignment(
+        tracker_precheck,
+        resolve_tracker_class_id_offset(opt),
+    )
     
     trackeval_results = trackeval(opt, seq_paths, save_dir, gt_folder, seq_info=seq_info)
     parsed_results = parse_mot_results(trackeval_results)
@@ -1021,6 +1126,7 @@ def run_trackeval(opt: argparse.Namespace, verbose: bool = True) -> dict:
 
     # Filter parsed_results based on user provided classes (opt.classes)
     single_class_mode = False
+    selected_classes = None
 
     # Priority 1: Benchmark config classes (overrides user classes)
     # 第一优先级找 yaml 文件中的 benchmark.eval_classes字段
@@ -1035,7 +1141,8 @@ def run_trackeval(opt: argparse.Namespace, verbose: bool = True) -> dict:
                 bench_classes = bench_cfg["classes"].split()
 
         if bench_classes:
-            parsed_results = {k: v for k, v in parsed_results.items() if k in bench_classes}
+            selected_classes = bench_classes
+            parsed_results = build_mot_results_summary(parsed_results, bench_classes)
             if len(bench_classes) == 1:
                 single_class_mode = True
     # Priority 2: User provided classes
@@ -1043,9 +1150,40 @@ def run_trackeval(opt: argparse.Namespace, verbose: bool = True) -> dict:
     elif hasattr(opt, 'classes') and opt.classes is not None:
         class_indices = opt.classes if isinstance(opt.classes, list) else [opt.classes]
         user_classes = [COCO_CLASSES[int(i)] for i in class_indices]
-        parsed_results = {k: v for k, v in parsed_results.items() if k in user_classes}
+        selected_classes = user_classes
+        parsed_results = build_mot_results_summary(parsed_results, user_classes)
         if len(user_classes) == 1:
             single_class_mode = True
+
+    if selected_classes and len(selected_classes) > 1 and OVERALL_RESULT_KEY not in parsed_results:
+        LOGGER.warning(
+            "TrackEval 未返回 {}，无法生成跨类别 overall；请确认 dataset.should_classes_combine=True",
+            TRACKEVAL_DETECTION_AVERAGE_KEY,
+        )
+
+    overall_metrics = parsed_results.get(OVERALL_RESULT_KEY)
+    if overall_metrics is not None:
+        overall_output = Path(opt.exp_dir) / "overall_summary.json"
+        overall_output.write_text(
+            json.dumps(
+                {
+                    "benchmark": dataset_settings["benchmark_name"],
+                    "aggregation": TRACKEVAL_DETECTION_AVERAGE_KEY,
+                    "classes": selected_classes,
+                    "class_ids": dataset_settings["class_ids"],
+                    "tracker_class_id_offset": resolve_tracker_class_id_offset(opt),
+                    "ignore_region_class_ids": dataset_settings["ignore_region_ids"],
+                    "ignore_ioa_threshold": dataset_settings["ignore_ioa_threshold"],
+                    "ignore_removal_condition": "coverage >= threshold",
+                    "ignore_filter_scope": "gt_and_tracker_before_class_matching",
+                    "metrics": overall_metrics,
+                },
+                ensure_ascii=False,
+                indent=2,
+            ),
+            encoding="utf-8",
+        )
+        LOGGER.info("Overall summary saved to {}", overall_output)
 
     if single_class_mode and len(parsed_results) > 0:
         final_results = list(parsed_results.values())[0]
@@ -1059,8 +1197,8 @@ def run_trackeval(opt: argparse.Namespace, verbose: bool = True) -> dict:
         LOGGER.opt(colors=True).info("<bold><cyan>📊 Results Summary</cyan></bold>")
         LOGGER.opt(colors=True).info("<blue>" + "="*90 + "</blue>")
         
-        headers = ["Class", "HOTA", "MOTA", "IDF1", "AssA", "AssRe", "IDSW", "IDs"]
-        header_str = "{:<15} {:<8} {:<8} {:<8} {:<8} {:<8} {:<8} {:<8}".format(*headers)
+        headers = ["Class", "HOTA", "DetA", "AssA", "MOTA", "IDF1", "AssRe", "IDSW", "IDs"]
+        header_str = "{:<15} {:<8} {:<8} {:<8} {:<8} {:<8} {:<8} {:<8} {:<8}".format(*headers)
         LOGGER.opt(colors=True).info(f"<bold>{header_str}</bold>")
         LOGGER.opt(colors=True).info("<blue>" + "-"*90 + "</blue>")
         
@@ -1068,14 +1206,15 @@ def run_trackeval(opt: argparse.Namespace, verbose: bool = True) -> dict:
             row = [
                 cls,
                 f"{metrics.get('HOTA', 0):.2f}%",
+                f"{metrics.get('DetA', 0):.2f}%",
+                f"{metrics.get('AssA', 0):.2f}%",
                 f"{metrics.get('MOTA', 0):.2f}%",
                 f"{metrics.get('IDF1', 0):.2f}%",
-                f"{metrics.get('AssA', 0):.2f}%",
                 f"{metrics.get('AssRe', 0):.2f}%",
                 f"{metrics.get('IDSW', 0)}",
                 f"{metrics.get('IDs', 0)}"
             ]
-            row_str = "{:<15} {:<8} {:<8} {:<8} {:<8} {:<8} {:<8} {:<8}".format(*row)
+            row_str = "{:<15} {:<8} {:<8} {:<8} {:<8} {:<8} {:<8} {:<8} {:<8}".format(*row)
             LOGGER.opt(colors=True).info(row_str)
             
         LOGGER.opt(colors=True).info("<blue>" + "="*90 + "</blue>")
@@ -1130,7 +1269,7 @@ def main(args):
         metrics_data = results
         plot_class = 'single_class'
     else:
-        plot_class = 'pedestrian'
+        plot_class = OVERALL_RESULT_KEY if OVERALL_RESULT_KEY in results else 'pedestrian'
         if plot_class not in results and len(results) > 0:
             plot_class = list(results.keys())[0]
         metrics_data = results.get(plot_class, {})

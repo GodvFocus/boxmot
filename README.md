@@ -1,5 +1,7 @@
 # **BoxMOT**: Pluggable SOTA multi-object tracking modules for segmentation, object detection and pose estimation models
 
+协作约定见 [CLAUDE.md](CLAUDE.md)；本地研究资料若存在，可从 `docs/research/project-state.md` 查看。
+
 <div align="center" markdown="1">
 
   <img width="640"

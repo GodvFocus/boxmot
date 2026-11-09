@@ -67,8 +67,10 @@ class Tracker:
         # Evaluate and extract objectives
         results = run_trackeval(self.opt)
 
-        # If results are nested (multi-class), average the metrics
+        # 多类别评估优先使用 TrackEval 基于基础计数重算的 overall，避免再次做类别算术平均。
         if results and isinstance(next(iter(results.values())), dict):
+            if "overall" in results:
+                return {k: max(0, results["overall"].get(k, 0)) for k in self.opt.objectives}
             return {
                 k: max(0, sum(c.get(k, 0) for c in results.values()) / len(results))
                 for k in self.opt.objectives

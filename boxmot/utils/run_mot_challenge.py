@@ -99,6 +99,12 @@ if __name__ == '__main__':
                     else:
                         seq_info_dict[entry] = None
                 x = seq_info_dict
+            elif setting == 'SEQ_IMAGE_SIZES':
+                seq_image_sizes = {}
+                for entry in args[setting]:
+                    name, height, width = entry.rsplit(':', 2)
+                    seq_image_sizes[name] = (int(height), int(width))
+                x = seq_image_sizes
             elif setting in {'CLASS_IDS', 'DISTRACTOR_CLASS_IDS', 'IGNORE_CLASS_IDS'}:
                 x = [int(v) for v in args[setting]] if args[setting] is not None else []
             else:
